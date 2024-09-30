@@ -388,6 +388,10 @@ export const generateZodValidationSchemaDefinition = (
     functions.push(['optional', undefined]);
   }
 
+  if (schema.description) {
+    functions.push(['describe', `\`${schema.description}\``]);
+  }
+
   return { functions, consts: uniq(consts) };
 };
 
@@ -732,6 +736,9 @@ const parseParameters = ({
           required: parameter.required,
         },
       );
+      if (parameter.description) {
+        definition.functions.push(['describe', `\`${parameter.description}\``]);
+      }
 
       if (parameter.in === 'header' && mapGenerate.header) {
         return {
@@ -819,6 +826,9 @@ const generateZodRoute = async (
   const spec = context.specs[context.specKey].paths[pathRoute] as
     | PathItemObject
     | undefined;
+
+  const operation = spec?.[verb];
+  const summary = operation?.summary;
 
   const parameters = spec?.[verb]?.parameters as (
     | ParameterObject
@@ -923,15 +933,15 @@ const generateZodRoute = async (
     implementation: [
       ...(inputParams.consts ? [inputParams.consts] : []),
       ...(inputParams.zod
-        ? [`export const ${operationName}Params = ${inputParams.zod}`]
+        ? [`export const ${operationName}Params = ${inputParams.zod}${summary ? `.describe(\`${summary}\`)` : ''}`]
         : []),
       ...(inputQueryParams.consts ? [inputQueryParams.consts] : []),
       ...(inputQueryParams.zod
-        ? [`export const ${operationName}QueryParams = ${inputQueryParams.zod}`]
+        ? [`export const ${operationName}QueryParams = ${inputQueryParams.zod}${summary ? `.describe(\`${summary}\`)` : ''}`]
         : []),
       ...(inputHeaders.consts ? [inputHeaders.consts] : []),
       ...(inputHeaders.zod
-        ? [`export const ${operationName}Header = ${inputHeaders.zod}`]
+        ? [`export const ${operationName}Header = ${inputHeaders.zod}${summary ? `.describe(\`${summary}\`)` : ''}`]
         : []),
       ...(inputBody.consts ? [inputBody.consts] : []),
       ...(inputBody.zod
@@ -942,8 +952,8 @@ export const ${operationName}Body = zod.array(${operationName}BodyItem)${
                   parsedBody.rules?.min ? `.min(${parsedBody.rules?.min})` : ''
                 }${
                   parsedBody.rules?.max ? `.max(${parsedBody.rules?.max})` : ''
-                }`
-              : `export const ${operationName}Body = ${inputBody.zod}`,
+                }${summary ? `.describe(\`${summary}\`)` : ''}`
+              : `export const ${operationName}Body = ${inputBody.zod}${summary ? `.describe(\`${summary}\`)` : ''}`,
           ]
         : []),
       ...inputResponses
@@ -967,8 +977,8 @@ export const ${operationResponse} = zod.array(${operationResponse}Item)${
                         parsedResponses[index].rules?.max
                           ? `.max(${parsedResponses[index].rules?.max})`
                           : ''
-                      }`
-                    : `export const ${operationResponse} = ${inputResponse.zod}`,
+                      }${summary ? `.describe(\`${summary}\`)` : ''}`
+                    : `export const ${operationResponse} = ${inputResponse.zod}${summary ? `.describe(\`${summary}\`)` : ''}`,
                 ]
               : []),
           ];
